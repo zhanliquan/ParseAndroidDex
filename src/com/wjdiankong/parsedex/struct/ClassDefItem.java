@@ -8,14 +8,17 @@ public class ClassDefItem {
      * annotations_off; uint class_data_off; uint static_value_off; }
      */
 
-    public int class_idx;
-    public int access_flags;
-    public int superclass_idx;
-    public int iterfaces_off;
-    public int source_file_idx;
-    public int annotations_off;
-    public int class_data_off;
-    public int static_value_off;
+    public int class_idx;//对应TypeIdItem
+    public int access_flags;//
+    public int superclass_idx;//对应TypeIdItem
+    public int iterfaces_off;//对应TypeIdItem
+    public int source_file_idx;//对应StringIdItem
+    public int annotations_off;// AnnotationsDirectoryItem
+    public int class_data_off;//ClassDataItem
+    public int static_value_off;//EncodedArray
+
+    //====================================================
+    public ClassDataItem dataItem; // for class_data_off
 
     public final static int ACC_PUBLIC = 0x00000001, // class, field, method, ic
             ACC_PRIVATE = 0x00000002, // field, method, ic

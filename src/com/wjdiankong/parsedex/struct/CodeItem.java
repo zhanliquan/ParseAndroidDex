@@ -1,5 +1,7 @@
 package com.wjdiankong.parsedex.struct;
 
+import java.util.Arrays;
+
 import com.wjdiankong.parsedex.Utils;
 
 public class CodeItem {
@@ -35,4 +37,9 @@ public class CodeItem {
         return sb.toString();
     }
 
+    public static void main(String[] args) {
+        /* 70 10 ,1d 00 ,00 00 ,0e 00 */
+        byte[] insns = new byte[] {0x70,0x10 ,0x1d, 0 ,0 ,0 , 0x0e, 0};
+        System.out.println(Arrays.toString(insns));
+    }
 }

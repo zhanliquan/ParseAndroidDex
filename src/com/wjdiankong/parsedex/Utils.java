@@ -10,8 +10,19 @@ public class Utils {
 
     public static int byte2int(byte[] res) {
         int targets = (res[0] & 0xff) | ((res[1] << 8) & 0xff00) | ((res[2] << 24) >>> 8) | (res[3] << 24);
-        return targets;
+//        return targets;
+        return bytesToInt(res);
     }
+
+    public static int bytesToInt(byte[] src) {
+        int offset = 0;
+        int value;
+        value = (int) ((src[offset] & 0xFF)
+                | ((src[offset+1] & 0xFF)<<8)
+                | ((src[offset+2] & 0xFF)<<16)
+                | ((src[offset+3] & 0xFF)<<24));
+        return value;  
+    }  
 
     public static byte[] int2Byte(final int integer) {
         int byteNum = (40 - Integer.numberOfLeadingZeros(integer < 0 ? ~integer : integer)) / 8;
@@ -181,6 +192,18 @@ public class Utils {
             byteAry[j] = byteAryList.get(j);
         }
         return byteAry;
+    }
+
+    public static int readUleb128(byte[] ulebbytes) {
+        int value = 0;
+        byte[] content = ulebbytes;
+        int tmp = 0;
+        int i = 0;
+        for (; i < ulebbytes.length; i++) {
+            tmp = (content[i]) & 0x7f;
+            value |= tmp << (i * 7);
+        }
+        return value;
     }
 
     /**

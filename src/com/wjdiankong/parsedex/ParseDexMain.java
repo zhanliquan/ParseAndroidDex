@@ -7,7 +7,7 @@ public class ParseDexMain {
 
     public static void main(String[] args) {
 //        String dexfile = "dex/Hello.dex";
-        String dexfile = "/home/zhanliquan/share/Workspace/eclipse/ZipVul/bin/classes.dex";
+        String dexfile = "/home/zhanliquan/share/Workspace/eclipse/ZipVul2/bin/classes.dex";
         byte[] srcByte = null;
         FileInputStream fis = null;
         ByteArrayOutputStream bos = null;
@@ -72,14 +72,15 @@ public class ParseDexMain {
         ParseDexUtils.parseMapItemList(srcByte);
         System.out.println("++++++++++++++++++++++++++++++++++++++++");
 
-        System.out.println("Parse Class Data:");
-        ParseDexUtils.parseClassData(srcByte);
-        System.out.println("++++++++++++++++++++++++++++++++++++++++");
+//        System.out.println("Parse Class Data:");
+//        ParseDexUtils.parseClassData(srcByte);
+//        System.out.println("++++++++++++++++++++++++++++++++++++++++");
 
         System.out.println("Parse Code Content:");
         ParseDexUtils.parseCode(srcByte);
         System.out.println("++++++++++++++++++++++++++++++++++++++++");
 
+        ParseDexUtils.showClasses();
     }
 
 }

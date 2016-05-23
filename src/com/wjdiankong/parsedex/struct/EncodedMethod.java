@@ -9,9 +9,10 @@ public class EncodedMethod {
      * uleb128 code_off; }
      */
 
-    public byte[] method_idx_diff;
+    public byte[] method_idx_diff; //MethodIdItem
+    public int methodId;
     public byte[] access_flags;
-    public byte[] code_off;
+    public byte[] code_off; //CodeItem, (DexCode)
 
     @Override
     public String toString() {

@@ -1,6 +1,10 @@
 package com.wjdiankong.parsedex;
 
+import java.io.BufferedOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
@@ -53,7 +57,7 @@ public class ParseDexUtils {
     private static List<String> stringList = new ArrayList<String>();
 
     // 这里的map用来存储code数据，因为一个ClassCode都是以SourceFile为单位的，所以这里的key就是SourceFileName来存储
-    private static HashMap<String, ClassDefItem> classDataMap = new HashMap<String, ClassDefItem>();
+//    private static HashMap<String, ClassDefItem> classDataMap = new HashMap<String, ClassDefItem>();
 
     public static void praseDexHeader(byte[] byteSrc) {
         HeaderType headerType = new HeaderType();
@@ -294,32 +298,45 @@ public class ParseDexUtils {
         int idSize = ClassDefItem.getSize();
         int countIds = classIdsSize;
         for (int i = 0; i < countIds; i++) {
-            classIdsList.add(parseClassDefItem(Utils.copyByte(srcByte, classIdsOffset + i * idSize, idSize)));
-        }
-        for (ClassDefItem item : classIdsList) {
-            System.out.println("item:" + item);
+            int offset = classIdsOffset + i * idSize;
+            System.out.println("offset : " + offset);
+            ClassDefItem item = parseClassDefItem(Utils.copyByte(srcByte, offset, idSize));
+            System.out.println("item: " + item);
             int classIdx = item.class_idx;
             TypeIdsItem typeItem = typeIdsList.get(classIdx);
-            System.out.println("classIdx:" + stringList.get(typeItem.descriptor_idx));
+            System.out.println("classIdx: " + stringList.get(typeItem.descriptor_idx));
             int superClassIdx = item.superclass_idx;
             TypeIdsItem superTypeItem = typeIdsList.get(superClassIdx);
-            System.out.println("superitem:" + stringList.get(superTypeItem.descriptor_idx));
+            System.out.println("superitem: " + stringList.get(superTypeItem.descriptor_idx));
             int sourceIdx = item.source_file_idx;
             String sourceFile = stringList.get(sourceIdx);
-            System.out.println("sourceFile:" + sourceFile);
-            classDataMap.put(sourceFile, item);
+            System.out.println("sourceFile: " + sourceFile);
+            parseClassData(srcByte, item);
+            classIdsList.add(item);
         }
     }
 
     /*************************** 解析ClassData ***************************/
-    public static void parseClassData(byte[] srcByte) {
-        for (String key : classDataMap.keySet()) {
-            int dataOffset = classDataMap.get(key).class_data_off;
-            System.out.println("data offset:" + Utils.bytesToHexString(Utils.int2Byte(dataOffset)));
-            ClassDataItem item = parseClassDataItem(srcByte, dataOffset);
-            dataItemList.add(item);
-            System.out.println("class item:" + item);
-        }
+    private static void parseClassData(byte[] srcByte, ClassDefItem classDefItem) {
+        int dataOffset = classDefItem.class_data_off;
+        System.out.println("data offset: " + Utils.bytesToHexString(Utils.int2Byte(dataOffset)));
+        ClassDataItem item = parseClassDataItem(srcByte, dataOffset);
+        classDefItem.dataItem = item;
+        dataItemList.add(item);
+        System.out.println("class item: " + item);
+    }
+
+    private static void parseClassData_bak(byte[] srcByte) {
+//        for (String key : classDataMap.keySet()) {
+//            System.out.println("The Class : " + key);
+//            ClassDefItem classDefItem = classDataMap.get(key);
+//            int dataOffset = classDefItem.class_data_off;
+//            System.out.println("data offset:" + Utils.bytesToHexString(Utils.int2Byte(dataOffset)));
+//            ClassDataItem item = parseClassDataItem(srcByte, dataOffset);
+//            classDefItem.dataItem = item;
+//            dataItemList.add(item);
+//            System.out.println("class item:" + item);
+//        }
     }
 
     private static ClassDataItem parseClassDataItem(byte[] srcByte, int offset) {
@@ -374,8 +391,9 @@ public class ParseDexUtils {
             instanceFieldAry[i] = instanceField;
         }
 
-        // 解析static_methods数组
-        EncodedMethod[] staticMethodsAry = new EncodedMethod[item.direct_methods_size];
+        // 解析direct_methods数组
+        int methodid = 0;
+        EncodedMethod[] directMethodsAry = new EncodedMethod[item.direct_methods_size];
         for (int i = 0; i < item.direct_methods_size; i++) {
             /**
              * public byte[] method_idx_diff; public byte[] access_flags; public
@@ -383,12 +401,15 @@ public class ParseDexUtils {
              */
             EncodedMethod directMethod = new EncodedMethod();
             directMethod.method_idx_diff = Utils.readUnsignedLeb128(srcByte, offset);
+            methodid += Utils.readUleb128(directMethod.method_idx_diff);
+            directMethod.methodId = methodid;
+            System.out.println("wayne ======" + Arrays.toString(directMethod.method_idx_diff) + "----value" + Utils.readUleb128(directMethod.method_idx_diff));
             offset += directMethod.method_idx_diff.length;
             directMethod.access_flags = Utils.readUnsignedLeb128(srcByte, offset);
             offset += directMethod.access_flags.length;
             directMethod.code_off = Utils.readUnsignedLeb128(srcByte, offset);
             offset += directMethod.code_off.length;
-            staticMethodsAry[i] = directMethod;
+            directMethodsAry[i] = directMethod;
         }
 
         // 解析virtual_methods数组
@@ -410,7 +431,7 @@ public class ParseDexUtils {
 
         item.static_fields = staticFieldAry;
         item.instance_fields = instanceFieldAry;
-        item.direct_methods = staticMethodsAry;
+        item.direct_methods = directMethodsAry;
         item.virtual_methods = instanceMethodsAry;
 
         return item;
@@ -419,7 +440,6 @@ public class ParseDexUtils {
     /*************************** 解析代码内容 ***************************/
     public static void parseCode(byte[] srcByte) {
         for (ClassDataItem item : dataItemList) {
-
             for (EncodedMethod item1 : item.direct_methods) {
                 int offset = Utils.decodeUleb128(item1.code_off);
                 CodeItem items = parseCodeItem(srcByte, offset);
@@ -441,9 +461,13 @@ public class ParseDexUtils {
         CodeItem item = new CodeItem();
 
         /**
-         * public short registers_size; public short ins_size; public short
-         * outs_size; public short tries_size; public int debug_info_off; public
-         * int insns_size; public short[] insns;
+         * public short registers_size;
+         * public short ins_size;
+         * public short outs_size;
+         * public short tries_size;
+         * public int debug_info_off;
+         * public int insns_size;
+         * public short[] insns;
          */
         byte[] regSizeByte = Utils.copyByte(srcByte, offset, 2);
         item.registers_size = Utils.byte2Short(regSizeByte);
@@ -603,4 +627,37 @@ public class ParseDexUtils {
 
     }
 
+    public static void showClasses(){
+        for (ClassDefItem item : classIdsList) {
+            System.out.println("class File : " + stringList.get(item.source_file_idx));
+            StringBuffer sb = new StringBuffer();
+            sb.append("classIdx :" + stringList.get(typeIdsList.get(item.class_idx).descriptor_idx));
+            sb.append(" extend "+ stringList.get(typeIdsList.get(item.superclass_idx).descriptor_idx)).append("{ \n");
+            for (EncodedMethod method : item.dataItem.direct_methods) {
+                int methodId = Utils.readUleb128(method.method_idx_diff);
+                methodId = method.methodId;
+                MethodIdsItem methodIdsItem = methodIdsList.get(methodId);
+                ProtoIdsItem proto = protoIdsList.get(methodIdsItem.proto_idx);
+                sb.append("----").append(methodId);
+                sb.append("    ").append(stringList.get(typeIdsList.get(proto.return_type_idx).descriptor_idx))
+                .append(" ").append(stringList.get(methodIdsItem.name_idx)).append("(")
+                .append(proto.parametersList)
+                .append(")");
+                sb.append("\n");
+            }
+            for (EncodedMethod method : item.dataItem.virtual_methods) {
+                int methodId = Utils.readUleb128(method.method_idx_diff);
+                MethodIdsItem methodIdsItem = methodIdsList.get(methodId);
+                ProtoIdsItem proto = protoIdsList.get(methodIdsItem.proto_idx);
+
+                sb.append("    ").append(stringList.get(typeIdsList.get(proto.return_type_idx).descriptor_idx))
+                .append(" ").append(stringList.get(methodIdsItem.name_idx)).append("(")
+                .append(proto.parametersList)
+                .append(")");
+                sb.append("\n");
+            }
+            sb.append("\n}\n\n");
+            System.out.println(sb.toString());
+        }
+    }
 }
